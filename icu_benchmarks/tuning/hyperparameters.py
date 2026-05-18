@@ -15,7 +15,7 @@ from icu_benchmarks.run_utils import log_full_line
 from icu_benchmarks.tuning.gin_utils import get_gin_hyperparameters, bind_gin_params
 from icu_benchmarks.constants import RunMode
 from icu_benchmarks.wandb_utils import wandb_log
-from optuna.visualization import plot_param_importances, plot_optimization_history
+from optuna.visualization.matplotlib import plot_param_importances, plot_optimization_history
 
 TUNE = 25
 logging.addLevelName(25, "TUNE")
