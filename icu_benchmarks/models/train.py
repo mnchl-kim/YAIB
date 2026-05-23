@@ -245,13 +245,16 @@ def load_model(model, source_dir, pl_model=True) -> DLModel | MLModelClassifier 
             else:
                 raise Exception(f"No weights to load at path : {source_dir}")
             if pl_model:
-                model = model.load_from_checkpoint(model_path)
+                model = model.load_from_checkpoint(model_path, weights_only=False)
             else:
-                checkpoint = torch.load(model_path)
+                checkpoint = torch.load(model_path, weights_only=False)
                 model.load_from_checkpoint(checkpoint)
         else:
             model_path = source_dir / "model.joblib"
-            model = load(model_path)
+            loaded = load(model_path)
+            instance = model()
+            instance.model = loaded
+            model = instance
     else:
         raise Exception(f"No weights to load at path : {source_dir}")
     logging.info(f"Loaded {type(model)} model from {model_path}")

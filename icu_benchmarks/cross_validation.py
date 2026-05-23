@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -107,12 +108,21 @@ def execute_repeated_cv(
             )
             preprocess_time = datetime.now() - start_time
             start_time = datetime.now()
+            iter_source_dir = source_dir
+            if (
+                os.environ.get("YAIB_PAIRED_SOURCE") == "1"
+                and load_weights
+                and source_dir.parent.name.startswith("repetition_")
+            ):
+                paired = source_dir.parent.parent / f"repetition_{repetition}" / f"fold_{fold_index}"
+                if paired.exists():
+                    iter_source_dir = paired
             agg_loss += train_common(
                 data,
                 log_dir=repetition_fold_dir,
                 eval_only=eval_only,
                 load_weights=load_weights,
-                source_dir=source_dir,
+                source_dir=iter_source_dir,
                 reproducible=reproducible,
                 test_on=test_on,
                 mode=mode,
