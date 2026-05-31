@@ -74,11 +74,11 @@ Implement by referring to the official paper and code.
 
 - with imputation
   - GRU-D
-    - Paper: https://www.nature.com/articles/s41598-018-24271-9 (preprint https://arxiv.org/abs/1606.01865)
+    - Paper: https://www.nature.com/articles/s41598-018-24271-9 (preprint https://arxiv.org/pdf/1606.01865)
     - Code: https://github.com/zhiyongc/GRU-D, https://github.com/PeterChe1990/GRU-D
   - BRITS
-    - Paper: 
-    - Code: 
+    - Paper: https://papers.nips.cc/paper_files/paper/2018/file/734e6bfcd358e25ac1db0a4241b95651-Paper.pdf (preprint https://arxiv.org/pdf/1805.10572)
+    - Code: https://github.com/caow13/BRITS
   - LatentODE
     - Paper: 
     - Code: 
