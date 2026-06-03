@@ -80,18 +80,21 @@ Implement by referring to the official paper and code.
     - Paper: https://papers.nips.cc/paper_files/paper/2018/file/734e6bfcd358e25ac1db0a4241b95651-Paper.pdf (preprint https://arxiv.org/pdf/1805.10572)
     - Code: https://github.com/caow13/BRITS
   - LatentODE
-    - Paper: 
-    - Code: 
+    - Paper: https://proceedings.neurips.cc/paper_files/paper/2019/file/42a6845a557bef704ad8ac9cb4461d43-Paper.pdf (preprint https://arxiv.org/pdf/1907.03907)
+    - Code: https://github.com/YuliaRubanova/latent_ode
 
 - without imputation
   - SeFT
-    - Paper: 
-    - Code: 
+    - Paper: https://proceedings.mlr.press/v119/horn20a/horn20a.pdf (preprint https://arxiv.org/pdf/1909.12064)
+    - Code: https://github.com/BorgwardtLab/Set_Functions_for_Time_Series
   - mTAND
-    - Paper: 
-    - Code: 
+    - Paper: https://openreview.net/pdf?id=4c0J6lwQ4_ (preprint https://arxiv.org/pdf/2101.10318)
+    - Code: https://github.com/reml-lab/mTAN
 
 - Latest SOTA
+  - iTransformer
+    - Paper: https://openreview.net/pdf?id=JePfAI8fah (preprint https://arxiv.org/pdf/2310.06625)
+    - Code: https://github.com/thuml/iTransformer
   - +1 latest SOTA baseline
     - Paper: NA
     - Code: NA

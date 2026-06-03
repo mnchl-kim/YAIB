@@ -2,21 +2,21 @@
 # YAIB paper reproduction runner
 #
 # Usage:
-#   ./run_yaib.sh -d DATASET -t TASK [-m MODEL] [-g GPU_ID] [-j NUM_THREADS] [-c START_CORE]
+#   ./run.sh -d DATASET -t TASK [-m MODEL] [-g GPU_ID] [-j NUM_THREADS] [-c START_CORE]
 #
 #   -d  DATASET       aumc | eicu | hirid | miiv
 #   -t  TASK          mortality24 | aki | sepsis | kidney_function | los
 #   -m  MODEL         lgbm | gru | both          (default: both)
-#   -g  GPU_ID        정수 (GRU에만 사용)         (default: 0)
+#   -g  GPU_ID        정수                        (default: 0)
 #   -j  NUM_THREADS   CPU thread 수               (default: 8)
 #   -c  START_CORE    CPU 코어 시작 번호          (default: auto)
 #                     auto: 빈 코어 자동 할당     (다른 인스턴스와 충돌 안 함)
 #                     N:   N ~ N+NUM_THREADS-1 사용
 #
 # Examples:
-#   ./run_yaib.sh -d miiv -t mortality24                  # 코어 자동 할당
-#   ./run_yaib.sh -d eicu -t aki -m gru -g 1 -j 4         # 4 threads, 자동 코어
-#   ./run_yaib.sh -d hirid -t los -m lgbm -j 8 -c 16      # 코어 16~23 수동
+#   ./run.sh -d miiv -t mortality24                  # 코어 자동 할당
+#   ./run.sh -d eicu -t aki -m gru -g 1 -j 4         # 4 threads, 자동 코어
+#   ./run.sh -d hirid -t los -m lgbm -j 8 -c 16      # 코어 16~23 수동
 
 set -euo pipefail
 
