@@ -141,7 +141,16 @@ def main(my_args=tuple(sys.argv[1:])):
         )
         gin.parse_config_files_and_bindings(gin_config_files, args.hyperparams, finalize_config=False)
         log_full_line(f"Data directory: {data_dir.resolve()}", level=logging.INFO)
-        run_dir = create_run_dir(log_dir)
+        if args.resume_dir is not None:
+            run_dir = args.resume_dir
+            if not run_dir.exists():
+                raise ValueError(f"--resume-dir does not exist: {run_dir}")
+            # Reuse the existing HPO study so tuning is skipped and the same best params are bound.
+            if hp_checkpoint is None:
+                hp_checkpoint = run_dir / "hyperparameter_tuning_logs.db"
+            log_full_line(f"Resuming into existing run dir: {run_dir.resolve()}", level=logging.INFO)
+        else:
+            run_dir = create_run_dir(log_dir)
         choose_and_bind_hyperparameters_optuna(
             do_tune=args.tune,
             data_dir=data_dir,

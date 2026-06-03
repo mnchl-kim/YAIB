@@ -87,6 +87,11 @@ def execute_repeated_cv(
         # Train model for each fold configuration (i.e, one fold is test fold and the rest are train/val folds)
         for fold_index in range(cv_folds_to_train):
             repetition_fold_dir = log_dir / f"repetition_{repetition}" / f"fold_{fold_index}"
+            # durations.json is written last per fold, so its presence marks a fully completed fold.
+            # This lets an interrupted run resume: completed folds are skipped, the rest are trained.
+            if (repetition_fold_dir / "durations.json").exists():
+                logging.info(f"Skipping already completed fold: {repetition_fold_dir}")
+                continue
             repetition_fold_dir.mkdir(parents=True, exist_ok=True)
 
             start_time = datetime.now()

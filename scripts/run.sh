@@ -33,10 +33,11 @@ MODEL=""
 GPU_ID=0
 NUM_THREADS=8
 START_CORE="auto"
+RESUME_DIR=""
 
 usage() {
   cat <<USAGE >&2
-Usage: $0 -d DATASET -t TASK [-m MODEL] [-g GPU_ID] [-j NUM_THREADS] [-c START_CORE]
+Usage: $0 -d DATASET -t TASK [-m MODEL] [-g GPU_ID] [-j NUM_THREADS] [-c START_CORE] [-r RESUME_DIR]
 
   -d  DATASET       aumc | eicu | hirid | miiv
   -t  TASK          mortality24 | aki | sepsis | kidney_function | los
@@ -44,11 +45,12 @@ Usage: $0 -d DATASET -t TASK [-m MODEL] [-g GPU_ID] [-j NUM_THREADS] [-c START_C
   -g  GPU_ID        정수 (GRU에만 사용)         (default: 0)
   -j  NUM_THREADS   CPU thread 수               (default: 8)
   -c  START_CORE    CPU 코어 시작 번호 또는 'auto' (default: auto)
+  -r  RESUME_DIR    중단된 run 폴더 경로 (HPO 재사용 + 완료 fold 스킵)
 USAGE
   exit 1
 }
 
-while getopts "d:t:m:g:j:c:h" opt; do
+while getopts "d:t:m:g:j:c:r:h" opt; do
   case "$opt" in
     d) DATASET=$OPTARG ;;
     t) TASK=$OPTARG ;;
@@ -56,6 +58,7 @@ while getopts "d:t:m:g:j:c:h" opt; do
     g) GPU_ID=$OPTARG ;;
     j) NUM_THREADS=$OPTARG ;;
     c) START_CORE=$OPTARG ;;
+    r) RESUME_DIR=$OPTARG ;;
     h|*) usage ;;
   esac
 done
@@ -194,6 +197,13 @@ run_one() {
     RUNNER="taskset -c ${START_CORE}-${END_CORE}"
   fi
 
+  # 중단된 run 이어하기: 지정 시 기존 run 폴더로 재진입(HPO 재사용 + 완료 fold 스킵)
+  local RESUME_ARG=""
+  if [ -n "$RESUME_DIR" ]; then
+    echo " resume -> $RESUME_DIR"
+    RESUME_ARG="--resume-dir $RESUME_DIR"
+  fi
+
   if [ "$model" = "GRU" ]; then
     CUDA_VISIBLE_DEVICES=$GPU_ID \
     $RUNNER icu-benchmarks train \
@@ -204,7 +214,8 @@ run_one() {
       -m GRU \
       --tune -gc -lc \
       -s "$SEED" \
-      -l "$LOG_DIR/"
+      -l "$LOG_DIR/" \
+      $RESUME_ARG
   else
     # LGBM은 CPU 학습 — Lightning이 GPU multi-device로 spawn하지 않도록 --cpu + GPU 숨김
     CUDA_VISIBLE_DEVICES="" \
@@ -218,7 +229,8 @@ run_one() {
       --cpu \
       --tune -gc -lc \
       -s "$SEED" \
-      -l "$LOG_DIR/"
+      -l "$LOG_DIR/" \
+      $RESUME_ARG
   fi
 
   local t1=$(date +%s)

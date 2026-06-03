@@ -47,6 +47,7 @@ def build_parser() -> ArgumentParser:
     parser.add_argument("-hp", "--hyperparams", nargs="+", help="Hyperparameters for model.")
     parser.add_argument("--tune", default=False, action=BOA, help="Find best hyperparameters.")
     parser.add_argument("--hp-checkpoint", type=Path, help="Use previous hyperparameter checkpoint.")
+    parser.add_argument("--resume-dir", type=Path, default=None, help="Resume into an existing run directory.")
     parser.add_argument("--eval", default=False, action=BOA, help="Only evaluate model, skip training.")
     parser.add_argument("--complete-train", default=False, action=BOA, help="Use all data to train model, skip testing.")
     parser.add_argument("-ft", "--fine-tune", default=None, type=int, help="Finetune model with amount of train data.")
