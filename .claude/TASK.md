@@ -32,6 +32,7 @@ Develop a representation pipeline that avoids conventional `B x T x F` tensoriza
 
 - YAIB
   - Paper: https://proceedings.iclr.cc/paper_files/paper/2024/file/c26a89073d972f2e6643617b0f3a9e8a-Paper-Conference.pdf
+  - Supplemental: https://proceedings.iclr.cc/paper_files/paper/2024/file/c26a89073d972f2e6643617b0f3a9e8a-Paper-Conference.pdf
   - Code: https://github.com/rvandewater/yaib
 
 - YAIB-cohorts
@@ -75,25 +76,31 @@ Implement by referring to the official paper and code.
 - with imputation
   - GRU-D
     - Paper: https://www.nature.com/articles/s41598-018-24271-9 (preprint https://arxiv.org/pdf/1606.01865)
+    - Supplemental: https://www.nature.com/articles/s41598-018-24271-9
     - Code: https://github.com/zhiyongc/GRU-D, https://github.com/PeterChe1990/GRU-D
   - BRITS
     - Paper: https://papers.nips.cc/paper_files/paper/2018/file/734e6bfcd358e25ac1db0a4241b95651-Paper.pdf (preprint https://arxiv.org/pdf/1805.10572)
+    - Supplemental: https://proceedings.neurips.cc/paper/2018/hash/734e6bfcd358e25ac1db0a4241b95651-Abstract.html
     - Code: https://github.com/caow13/BRITS
   - LatentODE
     - Paper: https://proceedings.neurips.cc/paper_files/paper/2019/file/42a6845a557bef704ad8ac9cb4461d43-Paper.pdf (preprint https://arxiv.org/pdf/1907.03907)
+    - Supplemental: https://proceedings.neurips.cc/paper/2019/hash/42a6845a557bef704ad8ac9cb4461d43-Abstract.html
     - Code: https://github.com/YuliaRubanova/latent_ode
 
 - without imputation
   - SeFT
     - Paper: https://proceedings.mlr.press/v119/horn20a/horn20a.pdf (preprint https://arxiv.org/pdf/1909.12064)
+    - Supplemental: https://proceedings.mlr.press/v119/horn20a/horn20a-supp.pdf
     - Code: https://github.com/BorgwardtLab/Set_Functions_for_Time_Series
   - mTAND
     - Paper: https://openreview.net/pdf?id=4c0J6lwQ4_ (preprint https://arxiv.org/pdf/2101.10318)
+    - Supplemental: https://openreview.net/pdf?id=4c0J6lwQ4_
     - Code: https://github.com/reml-lab/mTAN
 
 - Latest SOTA
   - iTransformer
     - Paper: https://openreview.net/pdf?id=JePfAI8fah (preprint https://arxiv.org/pdf/2310.06625)
+    - Supplemental: https://openreview.net/pdf?id=JePfAI8fah
     - Code: https://github.com/thuml/iTransformer
   - +1 latest SOTA baseline
     - Paper: NA
