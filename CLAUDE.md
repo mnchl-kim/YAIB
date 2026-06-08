@@ -14,3 +14,7 @@ Follow the project-level rules below.
 - Keep the `Goal` stable. Do not reinterpret or change it unless the user explicitly changes the task objective.
 - Keep updates concise and factual. Do not duplicate long explanations or logs.
 - Before ending a session, ensure `TASK.local.md` reflects the latest status and next actionable step.
+
+## Experiment Resource Management
+
+- Before running any smoke test, ask the user which GPU ID to use and what CPU usage/thread budget is allowed.
