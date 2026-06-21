@@ -22,7 +22,7 @@ set -euo pipefail
 
 # ======================== 고정 경로 ========================
 YAIB_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COHORTS_DATA=/team/team_bs_ic/personal/mincheol.kim/git/YAIB-cohorts/data/grid_1hour
+COHORTS_DATA=/data1/mincheol.kim/YAIB-cohorts/data/grid_1hour
 LOG_DIR=/team/team_bs_ic/personal/mincheol.kim/git/YAIB/logs
 SEED=1111
 # ==========================================================
@@ -42,10 +42,10 @@ Usage: $0 -d DATASET -t TASK [-m MODEL] [-g GPU_ID] [-j NUM_THREADS] [-c START_C
   -d  DATASET       aumc | eicu | hirid | miiv
   -t  TASK          mortality24 | aki | sepsis | kidney_function | los
   -m  MODEL         lgbm | gru | both          (default: both)
-  -g  GPU_ID        정수 (GRU에만 사용)         (default: 0)
-  -j  NUM_THREADS   CPU thread 수               (default: 8)
-  -c  START_CORE    CPU 코어 시작 번호 또는 'auto' (default: auto)
-  -r  RESUME_DIR    중단된 run 폴더 경로 (HPO 재사용 + 완료 fold 스킵)
+  -g  GPU_ID        GPU id                     (default: 0)
+  -j  NUM_THREADS   CPU thread number          (default: 8)
+  -c  START_CORE    CPU core start number or 'auto' (default: auto)
+  -r  RESUME_DIR    resume directory (HPO reuse + completed fold skip)
 USAGE
   exit 1
 }
