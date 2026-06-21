@@ -38,6 +38,7 @@ Usage:
 import argparse
 import json
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -146,6 +147,38 @@ def eval_dl_fold(src_fold: Path, data, out_fold: Path, cpu: bool) -> None:
     )
 
 
+def maybe_bind_feature_names(sample_cfg: Path, data, target_name: str) -> None:
+    """Work around models (BRITS, GRU-D) that require `feature_names` in __init__.
+
+    Those models pair value columns with their MissingIndicator masks at
+    construction time and store the resulting index as buffers (value_idx /
+    mask_idx) in the checkpoint. But `feature_names` itself is NOT saved as a
+    hyperparameter, so ``load_from_checkpoint`` (which rebuilds the model from
+    hparams) calls __init__ with feature_names=None and raises.
+
+    Since the index buffers are restored from state_dict anyway, __init__ only
+    needs *some* correctly-ordered column list to pass. We rebuild it exactly as
+    training does (train.py: train_dataset.get_feature_names() minus GROUP) from
+    the target's train split — the source train_config.gin guarantees identical
+    columns — and bind it via gin so it fills the missing hparam on reload.
+
+    Models that don't take feature_names (GRU, ...) are left untouched.
+    """
+    m = re.search(r"train_common\.model\s*=\s*@(\w+)", sample_cfg.read_text())
+    if not m:
+        return
+    cls_name = m.group(1)
+    train_ds = PredictionPolarsDataset(data, split=DataSplit.train, name=target_name)
+    feature_names = [c for c in train_ds.get_feature_names() if c != train_ds.vars["GROUP"]]
+    try:
+        with gin.unlock_config():
+            gin.bind_parameter(f"{cls_name}.feature_names", feature_names)
+        logging.info(f"bound {cls_name}.feature_names ({len(feature_names)} cols) for checkpoint reload")
+    except Exception as e:
+        # Configurable has no feature_names param (e.g. GRU) — nothing to do.
+        logging.info(f"{cls_name} takes no feature_names; skip ({e})")
+
+
 def eval_ml_fold(src_fold: Path, data, out_fold: Path, target_name: str) -> dict:
     """Load the sklearn estimator and compute metrics directly into out_fold."""
     test_ds = PredictionPolarsDataset(data, split=DataSplit.test, name=target_name)
@@ -213,6 +246,7 @@ def main(argv=None):
 
     overall_start = datetime.now()
     n_done = 0
+    bound_feature_names = False
     for r in range(n_rep):
         for f in range(n_fold):
             src_fold = source_run / f"repetition_{r}" / f"fold_{f}"
@@ -234,6 +268,11 @@ def main(argv=None):
                 runmode=RunMode.classification,
             )
             preprocess_time = datetime.now() - t0
+
+            # Columns are identical across folds; bind once for feature_names-requiring models.
+            if kind == "dl" and not bound_feature_names:
+                maybe_bind_feature_names(sample_cfg, data, args.target_name)
+                bound_feature_names = True
 
             t1 = datetime.now()
             if kind == "dl":
