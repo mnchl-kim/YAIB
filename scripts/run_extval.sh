@@ -116,10 +116,10 @@ fi
 F0="$SOURCE_RUN/repetition_0/fold_0"
 if [ -f "$F0/model.ckpt" ] || [ -f "$F0/last.ckpt" ]; then
   MODEL_KIND="dl"
-elif [ -f "$F0/model.joblib" ]; then
+elif [ -f "$F0/model.joblib" ] || [ -f "$F0/last.joblib" ]; then
   MODEL_KIND="ml"
 else
-  echo "ERROR: 모델 종류 감지 실패 (model.ckpt/last.ckpt/model.joblib 없음): $F0" >&2; exit 1
+  echo "ERROR: 모델 종류 감지 실패 (model.ckpt/last.ckpt/model.joblib/last.joblib 없음): $F0" >&2; exit 1
 fi
 
 # DL(GPU 사용)일 때만 GPU_ID 검증. ML이거나 --cpu면 불필요.

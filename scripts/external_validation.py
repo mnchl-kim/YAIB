@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 # Checkpoint/model file that marks a usable fold, per model kind.
 _DL_CKPTS = ("model.ckpt", "last.ckpt")
-_ML_MODEL = "model.joblib"
+_ML_MODELS = ("model.joblib", "last.joblib")
 
 
 def detect_model_kind(source_run: Path) -> str:
@@ -108,17 +108,24 @@ def detect_model_kind(source_run: Path) -> str:
     f0 = source_run / "repetition_0" / "fold_0"
     if any((f0 / c).exists() for c in _DL_CKPTS):
         return "dl"
-    if (f0 / _ML_MODEL).exists():
+    if any((f0 / c).exists() for c in _ML_MODELS):
         return "ml"
     raise ValueError(
-        f"cannot detect model kind: none of {_DL_CKPTS + (_ML_MODEL,)} found in {f0}"
+        f"cannot detect model kind: none of {_DL_CKPTS + _ML_MODELS} found in {f0}"
     )
+
+
+def _ml_model_path(src_fold: Path) -> Path:
+    for c in _ML_MODELS:
+        if (src_fold / c).exists():
+            return src_fold / c
+    raise FileNotFoundError(f"no ML model ({_ML_MODELS}) in {src_fold}")
 
 
 def fold_has_model(src_fold: Path, kind: str) -> bool:
     if kind == "dl":
         return any((src_fold / c).exists() for c in _DL_CKPTS)
-    return (src_fold / _ML_MODEL).exists()
+    return any((src_fold / c).exists() for c in _ML_MODELS)
 
 
 def compute_metrics(model, rep: np.ndarray, labels: np.ndarray) -> dict:
@@ -184,7 +191,7 @@ def eval_ml_fold(src_fold: Path, data, out_fold: Path, target_name: str) -> dict
     test_ds = PredictionPolarsDataset(data, split=DataSplit.test, name=target_name)
     rep, labels, _ = test_ds.get_data_and_labels()
 
-    model = load(src_fold / _ML_MODEL)
+    model = load(_ml_model_path(src_fold))
     n_in = getattr(model, "n_features_in_", None)
     if n_in is not None and n_in != rep.shape[1]:
         raise ValueError(
