@@ -155,21 +155,25 @@ def eval_dl_fold(src_fold: Path, data, out_fold: Path, cpu: bool) -> None:
 
 
 def maybe_bind_feature_names(sample_cfg: Path, data, target_name: str) -> None:
-    """Work around models (BRITS, GRU-D) that require `feature_names` in __init__.
+    """Work around models (BRITS, GRU-D, LatentODE) that require column metadata
+    (`feature_names`, and for LatentODE also `static_names`) in __init__.
 
     Those models pair value columns with their MissingIndicator masks at
     construction time and store the resulting index as buffers (value_idx /
-    mask_idx) in the checkpoint. But `feature_names` itself is NOT saved as a
-    hyperparameter, so ``load_from_checkpoint`` (which rebuilds the model from
-    hparams) calls __init__ with feature_names=None and raises.
+    mask_idx, or LatentODE's dyn_idx/sta_idx) in the checkpoint. But neither
+    `feature_names` nor `static_names` is saved as a hyperparameter, so
+    ``load_from_checkpoint`` (which rebuilds the model from hparams) calls
+    __init__ with them as None and either raises or — worse for LatentODE —
+    silently rebuilds a different dynamic/static partition, producing
+    state_dict buffers whose shapes mismatch the checkpoint.
 
-    Since the index buffers are restored from state_dict anyway, __init__ only
-    needs *some* correctly-ordered column list to pass. We rebuild it exactly as
-    training does (train.py: train_dataset.get_feature_names() minus GROUP) from
-    the target's train split — the source train_config.gin guarantees identical
-    columns — and bind it via gin so it fills the missing hparam on reload.
+    The buffers are restored from state_dict anyway, so __init__ only needs the
+    *same* column layout the source used. We rebuild it exactly as training does
+    (train.py) from the target's train split — the source train_config.gin
+    guarantees identical columns for the same task — and bind both via gin so
+    they fill the missing hparams on reload.
 
-    Models that don't take feature_names (GRU, ...) are left untouched.
+    Models that take neither param (GRU, ...) are left untouched.
     """
     m = re.search(r"train_common\.model\s*=\s*@(\w+)", sample_cfg.read_text())
     if not m:
@@ -177,13 +181,20 @@ def maybe_bind_feature_names(sample_cfg: Path, data, target_name: str) -> None:
     cls_name = m.group(1)
     train_ds = PredictionPolarsDataset(data, split=DataSplit.train, name=target_name)
     feature_names = [c for c in train_ds.get_feature_names() if c != train_ds.vars["GROUP"]]
-    try:
-        with gin.unlock_config():
-            gin.bind_parameter(f"{cls_name}.feature_names", feature_names)
-        logging.info(f"bound {cls_name}.feature_names ({len(feature_names)} cols) for checkpoint reload")
-    except Exception as e:
-        # Configurable has no feature_names param (e.g. GRU) — nothing to do.
-        logging.info(f"{cls_name} takes no feature_names; skip ({e})")
+    static_names = train_ds.vars.get("STATIC", [])
+    # Bind each independently: a configurable may accept one param but not the
+    # other (LatentODE takes both; BRITS/GRU-D take only feature_names; GRU none).
+    for param, value, desc in (
+        ("feature_names", feature_names, f"{len(feature_names)} cols"),
+        ("static_names", static_names, f"{len(static_names)} static cols"),
+    ):
+        try:
+            with gin.unlock_config():
+                gin.bind_parameter(f"{cls_name}.{param}", value)
+            logging.info(f"bound {cls_name}.{param} ({desc}) for checkpoint reload")
+        except Exception as e:
+            # Configurable has no such param (e.g. GRU) — nothing to do.
+            logging.info(f"{cls_name} takes no {param}; skip ({e})")
 
 
 def eval_ml_fold(src_fold: Path, data, out_fold: Path, target_name: str) -> dict:
