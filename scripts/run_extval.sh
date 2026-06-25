@@ -32,7 +32,7 @@ set -euo pipefail
 # ======================== 고정 경로 ========================
 YAIB_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COHORTS_DATA=/data1/mincheol.kim/YAIB-cohorts/data/grid_1hour
-LOG_DIR=/team/team_bs_ic/personal/mincheol.kim/git/YAIB/logs
+LOG_DIR=/data1/mincheol.kim/YAIB/logs
 SEED=1111
 # ==========================================================
 
