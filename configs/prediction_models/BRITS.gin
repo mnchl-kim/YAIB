@@ -1,0 +1,24 @@
+# Settings for BRITS (Bidirectional Recurrent Imputation for Time Series) model.
+# Reference: Cao et al., NeurIPS 2018. Official code: https://github.com/caow13/BRITS
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Register the BRITS model with gin
+import icu_benchmarks.models.dl_models.brits
+
+# Train params
+train_common.model = @BRITSNet
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-6, 1e-4, "log")
+
+# Encoder params
+model/hyperparameter.class_to_tune = @BRITSNet
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.hidden_dim = (32, 512, "log")
+# loss weights follow the original BRITS run configuration.
+model/hyperparameter.impute_weight = (1e-2, 1.0, "log")
+model/hyperparameter.consistency_weight = (1e-2, 1.0, "log")
