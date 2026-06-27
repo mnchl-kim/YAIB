@@ -133,8 +133,18 @@ def train_common(
     if load_weights:
         model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model)
     else:
+        # Names of the columns in the input tensor (GROUP column is excluded by the loader).
+        # Used by set/imputation models (e.g. SeFT) to pair value columns with their
+        # MissingIndicator masks; `dataset_vars` distinguishes dynamic vs static features.
+        feature_names = [c for c in train_dataset.get_feature_names() if c != train_dataset.vars["GROUP"]]
         model: DLModel | MLModelClassifier | MLModelRegression = model(
-            optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode, cpu=cpu
+            optimizer=optimizer,
+            input_size=data_shape,
+            epochs=epochs,
+            run_mode=mode,
+            cpu=cpu,
+            feature_names=feature_names,
+            dataset_vars=train_dataset.vars,
         )
 
     model.set_weight(weight, train_dataset)

@@ -1,0 +1,39 @@
+# Settings for SeFT (Set Functions for Time Series, SeFT-Attn) model.
+# Reference: Horn et al., ICML 2020. https://proceedings.mlr.press/v119/horn20a/horn20a.pdf
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Register the SeFT model with gin
+import icu_benchmarks.models.dl_models.seft
+
+# Train params
+train_common.model = @SeFTNet
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-4, 1e-2, "log")
+
+# Encoder params
+model/hyperparameter.class_to_tune = @SeFTNet
+model/hyperparameter.num_classes = %NUM_CLASSES
+
+# Tuned hyperparameters (search spaces).
+model/hyperparameter.phi_width = (16, 256, "log")
+model/hyperparameter.latent_width = (32, 256, "log")
+model/hyperparameter.rho_width = (16, 256, "log")
+model/hyperparameter.attn_dropout = (0.0, 0.5)
+
+# Fixed to the paper's defaults (not tuned).
+model/hyperparameter.n_phi_layers = 3
+model/hyperparameter.phi_dropout = 0.0
+model/hyperparameter.n_psi_layers = 2
+model/hyperparameter.psi_width = 64
+model/hyperparameter.psi_latent_width = 128
+model/hyperparameter.dot_prod_dim = 128
+model/hyperparameter.n_heads = 4
+model/hyperparameter.n_rho_layers = 3
+model/hyperparameter.rho_dropout = 0.0
+model/hyperparameter.max_timescale = 100.0
+model/hyperparameter.n_positional_dims = 16
