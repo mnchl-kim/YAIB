@@ -1,0 +1,44 @@
+# Settings for Latent ODE model.
+# Reference: Rubanova, Chen, Duvenaud, "Latent ODEs for Irregularly-Sampled
+# Time Series", NeurIPS 2019. https://github.com/YuliaRubanova/latent_ode
+# Faithful port of the official PhysioNet classification recipe.
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Register the Latent ODE model with gin
+import icu_benchmarks.models.dl_models.latent_ode
+
+# Train params
+train_common.model = @LatentODENet
+train_common.patience = 20
+train_common.gradient_clip_val = 1.0
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = (1e-6, 1e-3, "log")
+optimizer/hyperparameter.lr = (1e-4, 1e-2, "log")
+
+# Encoder/decoder params
+model/hyperparameter.class_to_tune = @LatentODENet
+model/hyperparameter.num_classes = %NUM_CLASSES
+# z0 / generative latent dim and recognition ODE-RNN hidden dim.
+model/hyperparameter.latent_dim = (16, 64, "log")
+model/hyperparameter.rec_dim = (32, 128, "log")
+# Hidden units of the ODE-func MLPs and the GRU MLPs (gru_units tuned like units).
+model/hyperparameter.units = (50, 512, "log")
+model/hyperparameter.gru_units = (32, 128, "log")
+# ODE-func depth (create_net builds n_layers + 2 Linear; official PhysioNet uses 3).
+model/hyperparameter.gen_layers = (2, 4)
+model/hyperparameter.rec_layers = (2, 4)
+# IWAE trajectory samples (official PhysioNet uses 3) and observation noise std.
+model/hyperparameter.n_traj_samples = 3
+model/hyperparameter.obsrv_std = 0.01
+# Euler sub-steps per grid interval in the recognition ODE-RNN.
+model/hyperparameter.enc_ode_steps = 2
+# KL annealing (official schedule): 0 for the first kl_warmup_epochs, then ramps to 1.
+model/hyperparameter.kl_warmup_epochs = 10
+model/hyperparameter.reconstr_coef = (0.001, 0.01, "log")
+# Poisson-process likelihood on observation times (official --poisson). Tuned on/off.
+model/hyperparameter.use_poisson = (True, False)
+model/hyperparameter.poisson_coef = (0.01, 0.1, "log")

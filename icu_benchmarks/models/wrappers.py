@@ -337,13 +337,14 @@ class DLPredictionWrapper(DLWrapper):
 
         if prediction.shape[-1] > 1 and self.run_mode == RunMode.classification:
             # Classification task
-            loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device)) + aux_loss
+            clf_loss = self.loss(prediction, target.long(), weight=self.loss_weights.to(self.device))
             # Returns torch.long because negative log likelihood loss
         elif self.run_mode == RunMode.regression:
             # Regression task
-            loss = self.loss(prediction[:, 0], target.float()) + aux_loss
+            clf_loss = self.loss(prediction[:, 0], target.float())
         else:
             raise ValueError(f"Run mode {self.run_mode} not yet supported. Please implement it.")
+        loss = clf_loss + aux_loss
         transformed_output = self.output_transform((prediction, target))
 
         for key, value in self.metrics[step_prefix].items():
@@ -356,6 +357,7 @@ class DLPredictionWrapper(DLWrapper):
             else:
                 value.update(transformed_output)
         self.log(f"{step_prefix}/loss", loss, on_step=False, on_epoch=True, sync_dist=True)
+        self.log(f"{step_prefix}/clf_loss", clf_loss, on_step=False, on_epoch=True, sync_dist=True)
         return loss
 
 

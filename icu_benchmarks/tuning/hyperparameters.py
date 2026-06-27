@@ -20,6 +20,8 @@ from optuna.visualization.matplotlib import plot_param_importances, plot_optimiz
 TUNE = 25
 logging.addLevelName(25, "TUNE")
 
+TUNE_FAILURE_SCORE = 1e9
+
 
 @gin.configurable("tune_hyperparameters_deprecated")
 def choose_and_bind_hyperparameters_scikit_optimize(
@@ -256,7 +258,9 @@ def choose_and_bind_hyperparameters_optuna(
                     return trial.suggest_categorical(name, value)
 
                 # Then in the objective function:
-                if isinstance(value[0], int) and isinstance(value[1], int):
+                if isinstance(value[0], bool):
+                    hyperparams[name] = suggest_categorical_param(trial, name, value)
+                elif isinstance(value[0], int) and isinstance(value[1], int):
                     hyperparams[name] = suggest_int_param(trial, name, value)
                 elif isinstance(value[0], (int, float)) and isinstance(value[1], (int, float)):
                     hyperparams[name] = suggest_float_param(trial, name, value)
@@ -301,20 +305,24 @@ def choose_and_bind_hyperparameters_optuna(
             bind_gin_params(hyperparams)
             if not do_tune:
                 return 0
-            score = execute_repeated_cv(
-                data_dir,
-                Path(temp_dir),
-                seed,
-                mode=run_mode,
-                cv_repetitions_to_train=1,
-                cv_folds_to_train=folds_to_tune_on,
-                generate_cache=generate_cache,
-                load_cache=load_cache,
-                test_on="val",
-                debug=debug,
-                verbose=verbose,
-                wandb=wandb,
-            )
+            try:
+                score = execute_repeated_cv(
+                    data_dir,
+                    Path(temp_dir),
+                    seed,
+                    mode=run_mode,
+                    cv_repetitions_to_train=1,
+                    cv_folds_to_train=folds_to_tune_on,
+                    generate_cache=generate_cache,
+                    load_cache=load_cache,
+                    test_on="val",
+                    debug=debug,
+                    verbose=verbose,
+                    wandb=wandb,
+                )
+            except (AssertionError, RuntimeError, FloatingPointError) as e:
+                logging.warning(f"Trial failed with {type(e).__name__}: {e}. Penalising and continuing.")
+                return TUNE_FAILURE_SCORE
             logging.info(f"Score: {score}")
             return score
 

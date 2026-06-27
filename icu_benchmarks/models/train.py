@@ -58,6 +58,7 @@ def train_common(
     num_workers: int = min(cpu_core_count, torch.cuda.device_count() * 8 * int(torch.cuda.is_available()), 32),
     polars: bool = True,
     persistent_workers: bool = False,
+    gradient_clip_val: float = 0.0,
 ):
     """Common wrapper to train all benchmarked models.
 
@@ -133,8 +134,16 @@ def train_common(
     if load_weights:
         model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model)
     else:
+        feature_names = [c for c in train_dataset.get_feature_names() if c != train_dataset.vars["GROUP"]]
+        static_names = train_dataset.vars.get("STATIC", [])
         model: DLModel | MLModelClassifier | MLModelRegression = model(
-            optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode, cpu=cpu
+            optimizer=optimizer,
+            input_size=data_shape,
+            epochs=epochs,
+            run_mode=mode,
+            cpu=cpu,
+            feature_names=feature_names,
+            static_names=static_names,
         )
 
     model.set_weight(weight, train_dataset)
@@ -148,7 +157,7 @@ def train_common(
         devices = 1
 
     callbacks = [
-        EarlyStopping(monitor="val/loss", min_delta=min_delta, patience=patience, strict=False, verbose=verbose),
+        EarlyStopping(monitor="val/clf_loss", min_delta=min_delta, patience=patience, strict=False, verbose=verbose),
         ModelCheckpoint(log_dir, filename="model", save_top_k=1, save_last=True),
         LearningRateMonitor(logging_interval="step"),
     ]
@@ -170,6 +179,7 @@ def train_common(
         logger=loggers,
         num_sanity_val_steps=2,  # Helps catch errors in the validation loop before training begins.
         log_every_n_steps=5,
+        gradient_clip_val=gradient_clip_val if model.requires_backprop else None,
     )
     if not eval_only:
         if model.requires_backprop:
@@ -203,7 +213,10 @@ def train_common(
     )
 
     model.set_weight("balanced", train_dataset)
-    test_loss = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]["test/loss"]
+    # Select on the pure prediction loss (clf_loss) so an auxiliary training term cannot game HPO.
+    # ML wrappers only log "test/loss" (== prediction loss), so fall back to it.
+    test_results = trainer.test(model, dataloaders=test_loader, verbose=verbose)[0]
+    test_loss = test_results.get("test/clf_loss", test_results["test/loss"])
     persist_shap_data(trainer, log_dir)
     save_config_file(log_dir)
     return test_loss

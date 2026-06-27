@@ -32,7 +32,6 @@ Develop a representation pipeline that avoids conventional `B x T x F` tensoriza
 
 - YAIB
   - Paper: https://proceedings.iclr.cc/paper_files/paper/2024/file/c26a89073d972f2e6643617b0f3a9e8a-Paper-Conference.pdf
-  - Supplemental: https://proceedings.iclr.cc/paper_files/paper/2024/file/c26a89073d972f2e6643617b0f3a9e8a-Paper-Conference.pdf
   - Code: https://github.com/rvandewater/yaib
 
 - YAIB-cohorts
@@ -76,31 +75,25 @@ Implement by referring to the official paper and code.
 - with imputation
   - GRU-D
     - Paper: https://www.nature.com/articles/s41598-018-24271-9 (preprint https://arxiv.org/pdf/1606.01865)
-    - Supplemental: https://www.nature.com/articles/s41598-018-24271-9
     - Code: https://github.com/zhiyongc/GRU-D, https://github.com/PeterChe1990/GRU-D
   - BRITS
     - Paper: https://papers.nips.cc/paper_files/paper/2018/file/734e6bfcd358e25ac1db0a4241b95651-Paper.pdf (preprint https://arxiv.org/pdf/1805.10572)
-    - Supplemental: https://proceedings.neurips.cc/paper/2018/hash/734e6bfcd358e25ac1db0a4241b95651-Abstract.html
     - Code: https://github.com/caow13/BRITS
   - LatentODE
     - Paper: https://proceedings.neurips.cc/paper_files/paper/2019/file/42a6845a557bef704ad8ac9cb4461d43-Paper.pdf (preprint https://arxiv.org/pdf/1907.03907)
-    - Supplemental: https://proceedings.neurips.cc/paper/2019/hash/42a6845a557bef704ad8ac9cb4461d43-Abstract.html
     - Code: https://github.com/YuliaRubanova/latent_ode
 
 - without imputation
   - SeFT
     - Paper: https://proceedings.mlr.press/v119/horn20a/horn20a.pdf (preprint https://arxiv.org/pdf/1909.12064)
-    - Supplemental: https://proceedings.mlr.press/v119/horn20a/horn20a-supp.pdf
     - Code: https://github.com/BorgwardtLab/Set_Functions_for_Time_Series
   - mTAND
     - Paper: https://openreview.net/pdf?id=4c0J6lwQ4_ (preprint https://arxiv.org/pdf/2101.10318)
-    - Supplemental: https://openreview.net/pdf?id=4c0J6lwQ4_
     - Code: https://github.com/reml-lab/mTAN
 
 - Latest SOTA
   - iTransformer
     - Paper: https://openreview.net/pdf?id=JePfAI8fah (preprint https://arxiv.org/pdf/2310.06625)
-    - Supplemental: https://openreview.net/pdf?id=JePfAI8fah
     - Code: https://github.com/thuml/iTransformer
   - +1 latest SOTA baseline
     - Paper: NA
@@ -192,3 +185,115 @@ Implement by referring to the official paper and code.
      - [ ] mortality
      - [ ] aki
      - [ ] sepsis
+
+---
+
+## LatentODE Implementation (branch: baseline_latentode)
+
+### Reference
+- Paper: Rubanova, Chen, Duvenaud, "Latent ODEs for Irregularly-Sampled Time Series", NeurIPS 2019.
+- Code: https://github.com/YuliaRubanova/latent_ode
+
+### Key facts about target data/infra (verified)
+- hirid/mortality24: every stay is a fixed 25-step regular 1h grid (no padding). One label per stay, on the last timestep only.
+- Preprocessor produces `MissingIndicator_<col>` columns + forward-fill (same as GRU-D relies on).
+- `DLPredictionWrapper.step_fn`: if `forward` returns a tuple `(out, aux_loss)`, aux_loss is added to the CE loss. Output must be `(B, T, num_classes)`; `mask` selects valid timesteps. `set_metrics` reads `self.logit.out_features`.
+- torchdiffeq 0.2.5 installed in `yaib` env.
+
+### Design (FAITHFUL port of official PhysioNet classification recipe)
+User decision: match official on everything EXCEPT KL annealing (kl_coef stays fixed/HPO).
+- Split input like GRU-D via `feature_names`: value (ffill), observed mask, leftover static
+  (static treated as always-observed extra features; data_dim = D + S).
+- Recognition net: official `Encoder_z0_ODE_RNN` + masked Gaussian `GRU_unit` run **backward**,
+  encoder ODE solved with **euler** (as in official z0_diffeq_solver) -> q(z0)=N(mean,std).
+- IWAE: `n_traj_samples=3` reparameterised z0 draws.
+- Generative ODE solved with **dopri5** (rtol 1e-3/atol 1e-4); linear `Decoder` reconstructs obs.
+- Classification from z0 directly (`classif_per_tp=False`): 3-layer `create_classifier`(latent->300->300->C).
+- Loss: official `ELBO = -logsumexp(rec_ll - kl_coef*KL)` + CE. In YAIB the framework computes CE
+  (class-weighted, 2-class softmax) over the labelled (last) timestep; `forward` broadcasts the z0
+  logits over T so the masked CE scores the z0 prediction. `aux_loss = reconstr_coef * ELBO` with
+  `reconstr_coef=0.01` => `CE + 0.01*ELBO` ∝ official `ELBO + 100*CE`.
+- masked Gaussian log-likelihood vectorised (official triple loop is too slow); same semantics
+  (mean over observed tp, mean over features, mean over trajectories).
+- ODE via torchdiffeq `odeint`. Normalised regular grid [0,1].
+
+### Deviations from official (documented in module docstring)
+- KL: fixed kl_coef (HPO), no annealing (user choice).
+- CE: YAIB's class-weighted 2-class softmax CE instead of official unweighted BCE (n_labels=1) —
+  consistent with how GRU/GRU-D are scored in this benchmark.
+
+### Files
+- `icu_benchmarks/models/dl_models/latent_ode.py` (model)
+- `configs/prediction_models/LatentODE.gin` (config)
+- `icu_benchmarks/models/__init__.py` (register LatentODENet)
+- `icu_benchmarks/models/train.py` (pass `feature_names`, same patch as GRU-D)
+- `scripts/run.sh` (add `latentode` model branch)
+
+### Status / Next
+- [x] Read codebase, run.sh, data structure, GRU-D reference.
+- [x] Implement model + config + registration + train.py patch + run.sh.
+- [x] Unit test forward/backward/KL (shape (B,T,2), grad flows, eval mode).
+- [x] Smoke test on hirid/mortality24 (GPU2, --no-tune, epochs=2): pipeline完走,
+      fold_0 train/val/test metrics written. val AUC≈0.62, test AUC≈0.62 (2 epochs,
+      random=0.5 -> learning signal confirmed). 1 fold ≈ 3m11s with euler solver.
+- [x] Verified metrics/logs (train/val/test_metrics.json + durations.json).
+- [x] Reviewed official paper/code vs implementation; user chose to faithfully match
+      the official PhysioNet recipe (except fixed kl_coef). Re-implemented accordingly.
+- [x] Re-smoke (faithful version, GPU2, --no-tune, epochs=2): pipeline完走,
+      fold_0 val AUC≈0.69, test AUC≈0.716 (vs 0.62 of the first simplified version).
+- [x] Reviewed official PhysioNet static handling + HPO. Findings:
+      - static features: official folds them into the time-series vector (params has
+        5 static + 36 dynamic = 41 dims); our code concatenates dynamic+static too, so
+        equivalent. Static-split fix (sta_idx + real MI mask) is correct.
+      - official PhysioNet cmd: -l 20 --rec-dims 40 --rec-layers 3 --gen-layers 3
+        --units 50 --gru-units 50 --quantization 0.016 --classif; n_traj_samples=3;
+        KL annealing (0 for 10 ep, then 1-0.99^(ep-10)); lr=1e-2, batch=50.
+- [x] Aligned with official (user decision): gen_layers=rec_layers=3 (create_net
+      kept official verbatim -> 5 Linear), gru_units tuned like units (50,200,log),
+      KL annealing via current_epoch (kl_warmup_epochs=10, replaces fixed kl_coef).
+- [x] Smoke (GPU2, 50% CPU cores 64-127, --no-tune, epochs=14 > warmup 10): pipeline
+      完走, fold_0 test AUC≈0.769, PR≈0.292. KL annealing active, no NaN.
+- [x] Full tuned run (2026-06-08T18-24-05): accumulated test AUC=0.795 (±0.003),
+      below GRU 0.842 and expected 0.83-0.85.
+- [x] Diagnosed underperformance: severe overfitting (fold_0 train AUC 0.987 vs val
+      0.765 / test 0.80) + HPO pinned latent_dim=128 (ceiling) and reconstr_coef=0.001
+      (floor). ROOT CAUSE: early stop + HPO both select on val/loss = CE + aux_loss
+      (= reconstr_coef·ELBO). reconstr_coef enters the selection metric multiplicatively,
+      so HPO lowers val/loss simply by shrinking reconstr_coef -> floor -> VAE regulariser
+      effectively off -> classifier overfits. GRU is unaffected (its val/loss == CE).
+- [x] Fix (user-approved): keep optimised loss = CE+aux, but select on PURE CE.
+      - wrappers.py step_fn: log separate `{prefix}/clf_loss` (pure prediction loss);
+        `loss` (=clf_loss+aux) still optimised & logged as `{prefix}/loss`.
+      - train.py: EarlyStopping monitor "val/loss" -> "val/clf_loss"; HPO return uses
+        test/clf_loss (fallback to test/loss for ML wrappers that don't log clf_loss).
+      - LatentODE.gin: latent_dim cap 128->64; weight_decay 1e-6 -> (1e-6,1e-3,"log");
+        patience 10 -> 20. (user also capped rec_dim 256->128, units 1000->512,
+        gru_units 256->128 to further cut capacity.)
+- [x] Smoke (GPU2, cores 64-127, yaib env + PYTHONPATH=worktree, --no-tune, epochs=12,
+      1 rep/1 fold): pipeline完走, clf_loss decoupled (val loss 3.46 vs val clf_loss 0.575),
+      no NaN, test AUC 0.809 (single random config). NOTE: run needs BOTH `conda run -n yaib`
+      (deps+entry point) AND `PYTHONPATH=<worktree>` (resolve latent_ode module).
+- [x] Full tuned run (commit 9af2e5d config) crashed mid-HPO: torchdiffeq dopri5
+      "AssertionError: underflow in dt 0.0" in the non-poisson generative solver. A high-lr
+      trial diverged -> stiff ODE field -> adaptive step -> 0. Official avoids this via
+      Adamax + LR decay (no clipping); we use plain Adam over lr up to 1e-2.
+      Fix: gradient clipping. train.py: new `train_common.gradient_clip_val` arg passed to
+      Trainer (0/None for other models); LatentODE.gin: `train_common.gradient_clip_val = 1.0`.
+- [x] Stress smoke (the crashing path: use_poisson=False, Adam.lr=1e-2, 1 fold, epochs=12):
+      Training complete, 0 underflow, no NaN/traceback. Clipping fixes it.
+- [x] Re-run still crashed (run 2026-06-15T19-54-31, clipping=1.0 active): Optuna trial 1
+      (use_poisson=False, lr=0.0072, gen3/rec4, units137) underflowed AGAIN -> clip 1.0
+      insufficient for deeper/wider ODE nets. Worse: `study.optimize` has catch=() so the
+      raise killed the whole HPO (only 2/30 trials ran).
+- [x] Fix - HPO robustness (committed): hyperparameters.py bind_params_and_train wraps
+      execute_repeated_cv in try/except (AssertionError/RuntimeError/FloatingPointError) ->
+      returns module const TUNE_FAILURE_SCORE=1e9 so a numerically diverging trial is
+      penalised and the study continues instead of dying.
+      NOTE: Adam + gradient_clip_val=1.0 retained (user reverted a trial Adamax switch);
+      stability now relies on clipping + the graceful-fail penalty steering the sampler away
+      from divergent regions, not on Adamax.
+- [x] Verified (before the Adamax revert): re-ran the exact crashing trial-1 config (1 fold,
+      epochs=12) with clipping -> 0 underflow, Training complete, test AUC 0.779.
+- [ ] Next: user runs the full tuned experiment themselves via
+      `scripts/run.sh -d hirid -t mortality24 -m latentode -g <gpu> -j 16` (check AUC vs 0.795).
+      (user repointed COHORTS_DATA to /data1/... in run.sh; not committed.)
