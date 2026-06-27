@@ -1,0 +1,23 @@
+# Settings for GRU-D (Gated Recurrent Unit with trainable Decays) model.
+# Reference: Che et al., Scientific Reports 8, 6085 (2018).
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Register the GRU-D model with gin
+import icu_benchmarks.models.dl_models.gru_d
+
+# Train params
+train_common.model = @GRUDNet
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-6, 1e-4, "log")
+
+# Encoder params
+model/hyperparameter.class_to_tune = @GRUDNet
+model/hyperparameter.num_classes = %NUM_CLASSES
+model/hyperparameter.hidden_dim = (32, 512, "log")
+# Fixed to 1 (not tuned): the original GRU-D is single-layer.
+model/hyperparameter.layer_dim = 1

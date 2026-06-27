@@ -133,8 +133,19 @@ def train_common(
     if load_weights:
         model: DLModel | MLModelClassifier | MLModelRegression = load_model(model, source_dir, pl_model=pl_model)
     else:
+        # Names of the columns in the input tensor (GROUP column is excluded by the loader).
+        # Used by models such as GRU-D to pair value columns with their MissingIndicator masks
+        # and to tell static (vars["STATIC"]) columns apart from dynamic ones.
+        feature_names = [c for c in train_dataset.get_feature_names() if c != train_dataset.vars["GROUP"]]
+        static_names = train_dataset.vars.get("STATIC", [])
         model: DLModel | MLModelClassifier | MLModelRegression = model(
-            optimizer=optimizer, input_size=data_shape, epochs=epochs, run_mode=mode, cpu=cpu
+            optimizer=optimizer,
+            input_size=data_shape,
+            epochs=epochs,
+            run_mode=mode,
+            cpu=cpu,
+            feature_names=feature_names,
+            static_names=static_names,
         )
 
     model.set_weight(weight, train_dataset)
