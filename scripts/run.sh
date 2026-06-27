@@ -6,7 +6,7 @@
 #
 #   -d  DATASET       aumc | eicu | hirid | miiv
 #   -t  TASK          mortality24 | aki | sepsis | kidney_function | los
-#   -m  MODEL         lgbm | gru | both          (default: both)
+#   -m  MODEL         lgbm | gru | mtand | both  (default: both)
 #   -g  GPU_ID        정수                        (default: 0)
 #   -j  NUM_THREADS   CPU thread 수               (default: 8)
 #   -c  START_CORE    CPU 코어 시작 번호          (default: auto)
@@ -41,7 +41,7 @@ Usage: $0 -d DATASET -t TASK [-m MODEL] [-g GPU_ID] [-j NUM_THREADS] [-c START_C
 
   -d  DATASET       aumc | eicu | hirid | miiv
   -t  TASK          mortality24 | aki | sepsis | kidney_function | los
-  -m  MODEL         lgbm | gru | both          (default: both)
+  -m  MODEL         lgbm | gru | mtand | both  (default: both)
   -g  GPU_ID        GPU id                     (default: 0)
   -j  NUM_THREADS   CPU thread number          (default: 8)
   -c  START_CORE    CPU core start number or 'auto' (default: auto)
@@ -176,6 +176,11 @@ export NUMBA_NUM_THREADS=$NUM_THREADS
 mkdir -p "$LOG_DIR"
 cd "$YAIB_ROOT"
 
+# Use THIS worktree's code, not whatever the shared editable install points to.
+# (The `icu-benchmarks` console script ignores CWD; without this it imports the
+#  package from the original install location instead of this worktree.)
+export PYTHONPATH="$YAIB_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+
 if [ ! -d "$COHORTS_DATA/$TASK/$DATASET" ]; then
   echo "ERROR: 코호트 폴더 없음: $COHORTS_DATA/$TASK/$DATASET" >&2
   exit 1
@@ -204,14 +209,14 @@ run_one() {
     RESUME_ARG="--resume-dir $RESUME_DIR"
   fi
 
-  if [ "$model" = "GRU" ]; then
+  if [ "$model" = "GRU" ] || [ "$model" = "mTAND" ]; then
     CUDA_VISIBLE_DEVICES=$GPU_ID \
     $RUNNER icu-benchmarks train \
       -d "$COHORTS_DATA/$TASK/$DATASET" \
       -n "$DATASET" \
       -t "$TASK_TYPE" \
       -tn "$TASK_NAME" \
-      -m GRU \
+      -m "$model" \
       --tune -gc -lc \
       -s "$SEED" \
       -l "$LOG_DIR/" \
@@ -244,12 +249,15 @@ case "${MODEL,,}" in
   gru)
     run_one GRU
     ;;
+  mtand|mtan|m-tand)
+    run_one mTAND
+    ;;
   both|all)
     run_one "$LGBM_MODEL"
     run_one GRU
     ;;
   *)
-    echo "Unknown MODEL: $MODEL (사용 가능: lgbm | gru | both)" >&2
+    echo "Unknown MODEL: $MODEL (사용 가능: lgbm | gru | mtand | both)" >&2
     exit 1
     ;;
 esac

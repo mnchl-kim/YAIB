@@ -1,0 +1,36 @@
+# Settings for mTAND-Full (Multi-Time Attention Network) model.
+# Reference: Shukla & Marlin, ICLR 2021 (https://arxiv.org/abs/2101.10318).
+# Official code: https://github.com/reml-lab/mTAN
+#   (tan_classification.py --enc mtan_rnn --dec mtan_rnn; the VAE encoder-decoder
+#    variant reported for PhysioNet/MIMIC-III mortality, objective recon + alpha*CE)
+
+# Common settings for DL models
+include "configs/prediction_models/common/DLCommon.gin"
+
+# Register the mTAND model with gin
+import icu_benchmarks.models.dl_models.mtand
+
+# Train params
+train_common.model = @MTANDNet
+
+# Optimizer params
+optimizer/hyperparameter.class_to_tune = @Adam
+optimizer/hyperparameter.weight_decay = 1e-6
+optimizer/hyperparameter.lr = (1e-6, 1e-4, "log")
+
+# Encoder params
+model/hyperparameter.class_to_tune = @MTANDNet
+model/hyperparameter.num_classes = %NUM_CLASSES
+# Encoder/classifier GRU width (rec_hidden) and VAE latent dim (tuned).
+model/hyperparameter.hidden_dim = (64, 512, "log")
+model/hyperparameter.latent_dim = (16, 256, "log")
+model/hyperparameter.num_heads = [1, 2, 4]
+model/hyperparameter.alpha = (5, 1000, "log")
+# Fixed per the official mortality config (tan_classification.py defaults).
+model/hyperparameter.gen_hidden = 50
+model/hyperparameter.num_ref_points = 128
+model/hyperparameter.embed_time = 128
+model/hyperparameter.learn_emb = True
+model/hyperparameter.k_iwae = 1
+model/hyperparameter.std = 0.01
+model/hyperparameter.norm = True
